@@ -224,7 +224,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("📦 Kho hàng", callback_data="stock"), InlineKeyboardButton("🛒 Mua hàng", callback_data="buy_menu")],
             [InlineKeyboardButton("💵 Nạp tiền", callback_data="recharge")]
         ]
-        reply_markup = InlineKeyboardMarkup(keyboard) # Đã sửa bọc vào InlineKeyboardMarkup chuẩn
+        reply_markup = InlineKeyboardMarkup(keyboard) # Đã bọc chuẩn để nút Quay lại hoạt động mượt mà
+        
         await query.edit_message_text(
             f"Xin chào {query.from_user.first_name}!\n"
             f"💰 Số dư hiện tại: {balance:,} VNĐ\n"
