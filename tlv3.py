@@ -17,7 +17,7 @@ logging.basicConfig(
 )
 
 # Cấu hình sẵn Token và Admin ID của bạn
-TOKEN = "7547076899:AAEj41pXoF80Ea4fK2Jk8yXb_Q1n4JqN74g"
+TOKEN = "9291585542:AAFkdq6uxLvRsZLI2NKyN4Dxr-rONDe0kdM"
 ADMIN_IDS = [9047366482]
 
 # Khởi tạo Database SQLite
