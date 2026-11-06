@@ -17,7 +17,7 @@ logging.basicConfig(
 )
 
 # Cấu hình sẵn Token và Admin ID của bạn
-TOKEN = "9291585542:AAFkdq6uxLvRsZLI2NKyN4Dxr-rONDe0kdM"
+TOKEN = "7547076899:AAEj41pXoF80Ea4fK2Jk8yXb_Q1n4JqN74g"
 ADMIN_IDS = [9047366482]
 
 # Khởi tạo Database SQLite
@@ -33,7 +33,6 @@ def init_db():
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS accounts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            platform TEXT NOT NULL,
             product_name TEXT NOT NULL,
             account_info TEXT NOT NULL,
             status TEXT DEFAULT 'AVAILABLE',
@@ -93,12 +92,12 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if data == "stock":
         conn = sqlite3.connect("bot_store.db")
         cursor = conn.cursor()
-        # Chỉ đếm số lượng, KHÔNG select account_info để lộ ra ngoài
+        # Chỉ nhóm theo Tên sản phẩm và Đếm số lượng, TUYỆT ĐỐI KHÔNG lôi account_info ra
         cursor.execute('''
-            SELECT platform, product_name, COUNT(*) 
+            SELECT product_name, COUNT(*) 
             FROM accounts 
             WHERE status = 'AVAILABLE' 
-            GROUP BY LOWER(platform), LOWER(product_name)
+            GROUP BY LOWER(product_name)
         ''')
         rows = cursor.fetchall()
         conn.close()
@@ -107,8 +106,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text = "📦 **KHO HÀNG HIỆN TẠI ĐANG TRỐNG!**"
         else:
             text = "📦 **DANH SÁCH KHO HÀNG HỆ THỐNG:**\n\n"
-            for platform, p_name, count in rows:
-                text += f"• [{platform.upper()}] {p_name}: Còn **{count}** tài khoản\n"
+            for p_name, count in rows:
+                text += f"• 📌 **{p_name}**: Còn **{count}** tài khoản\n"
         
         keyboard = [[InlineKeyboardButton("🔙 Quay lại", callback_data="home")]]
         await query.edit_message_text(text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
@@ -117,7 +116,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         conn = sqlite3.connect("bot_store.db")
         cursor = conn.cursor()
         cursor.execute('''
-            SELECT DISTINCT platform, product_name 
+            SELECT DISTINCT product_name 
             FROM accounts 
             WHERE status = 'AVAILABLE'
         ''')
@@ -129,8 +128,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         keyboard = []
-        for platform, p_name in items:
-            keyboard.append([InlineKeyboardButton(f"🛒 Mua {platform.upper()} - {p_name}", callback_data=f"buy_prod|{p_name}")])
+        for (p_name,) in items:
+            keyboard.append([InlineKeyboardButton(f"🛒 Mua: {p_name}", callback_data=f"buy_prod|{p_name}")])
         keyboard.append([InlineKeyboardButton("🔙 Quay lại", callback_data="home")])
         
         await query.edit_message_text("🛒 **CHỌN SẢN PHẨM BẠN MUỐN MUA:**", parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
@@ -167,13 +166,13 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         acc_id, account_info = acc
         
-        # Cập nhật trạng thái đã bán và trừ tiền
+        # Cập nhật trạng thái thành SOLD và trừ tiền
         cursor.execute("UPDATE accounts SET status = 'SOLD' WHERE id = ?", (acc_id,))
         cursor.execute("UPDATE users SET balance = balance - ? WHERE user_id = ?", (PRICE_PER_ITEM, user_id))
         conn.commit()
         conn.close()
 
-        # 1. Thông báo trên giao diện nút bấm (chỉ báo thành công chung chung, KHÔNG lộ pass)
+        # Thông báo chung trên khung chat (Hoàn toàn KHÔNG lộ pass)
         await query.edit_message_text(
             f"✅ **MUA TÀI KHOẢN THÀNH CÔNG!**\n\n"
             f"📌 **Sản phẩm:** `{product_name}`\n"
@@ -183,7 +182,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Về trang chủ", callback_data="home")]])
         )
 
-        # 2. Gửi thông tin tài khoản riêng tư trực tiếp qua tin nhắn cho người mua
+        # Gửi thông tin tài khoản RIÊNG TƯ trực tiếp vào tin nhắn cá nhân của khách
         try:
             await context.bot.send_message(
                 chat_id=user_id,
@@ -201,9 +200,14 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "recharge":
         recharge_text = (
             "💵 **HƯỚNG DẪN NẠP TIỀN**\n\n"
-            "💜 **MOMO:** `0869561613` (PHAM VAN TUNG)\n"
-            "💚 **VPBANK:** `0204098386` (PHAM VAN TUNG)\n\n"
-            "📝 **Nội dung:** `nap " + str(user_id) + "`"
+            "Quý khách vui lòng chuyển khoản theo thông tin bên dưới:\n\n"
+            "💜 **MOMO:**\n"
+            "• Số điện thoại: `0869561613`\n"
+            "• Chủ tài khoản: **PHAM VAN TUNG**\n\n"
+            "💚 **VPBANK:**\n"
+            "• Số tài khoản: `0204098386`\n"
+            "• Chủ tài khoản: **PHAM VAN TUNG**\n\n"
+            "📝 **Nội dung chuyển khoản:** `nap " + str(user_id) + "`"
         )
         keyboard = [[InlineKeyboardButton("🔙 Quay lại", callback_data="home")]]
         await query.edit_message_text(recharge_text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
@@ -212,15 +216,15 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         balance = get_user_balance(user_id)
         await query.edit_message_text(
             f"👤 **THÔNG TIN TÀI KHOẢN**\n\n"
-            f"🆔 ID: `{user_id}`\n"
-            f"💰 Số dư: **{balance:,} VNĐ**",
+            f"🆔 Telegram ID: `{user_id}`\n"
+            f"💰 Số dư hiện tại: **{balance:,} VNĐ**",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Quay lại", callback_data="home")]])
         )
 
     elif data == "history":
         await query.edit_message_text(
-            f"📜 **LỊCH SỬ GIAO DỊCH**\n\nTính năng đang cập nhật...",
+            f"📜 **LỊCH SỬ GIAO DỊCH**\n\nTính năng đang được cập nhật...",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Quay lại", callback_data="home")]])
         )
@@ -240,25 +244,46 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=reply_markup
         )
 
-# Lệnh Admin
+# ----------------- LỆNH ADMIN THÊM HÀNG BẢO MẬT ----------------- #
 async def admin_add_account(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in ADMIN_IDS:
         return
 
     text = update.message.text.strip()
-    parts = text.split(maxsplit=3)
-    if len(parts) < 4:
-        await update.message.reply_text("⚠️ Sai cú pháp! Dùng: `thêm <platform> <info> <tên>`", parse_mode="Markdown")
+    parts = text.split(maxsplit=2) # Tách thành 3 phần: lệnh, tên sản phẩm, thông tin acc
+
+    if len(parts) < 3:
+        await update.message.reply_text(
+            "⚠️ **Sai cú pháp thêm hàng!**\n"
+            "👉 Cú pháp chuẩn: `thêm <tên_sản_phẩm> <thông_tin_tài_khoản>`\n"
+            "👉 Ví dụ: `thêm Gmail_Co hhakbauvak162@gmail.com|pass123|2fa`",
+            parse_mode="Markdown"
+        )
         return
 
-    _, platform, account_info, product_name = parts
+    _, product_name, account_info = parts
+
     conn = sqlite3.connect("bot_store.db")
     cursor = conn.cursor()
-    cursor.execute('INSERT INTO accounts (platform, product_name, account_info, status) VALUES (?, ?, ?, "AVAILABLE")', (platform.lower(), product_name, account_info))
+    cursor.execute('''
+        INSERT INTO accounts (product_name, account_info, status)
+        VALUES (?, ?, 'AVAILABLE')
+    ''', (product_name, account_info))
     conn.commit()
+    
+    cursor.execute('''
+        SELECT COUNT(*) FROM accounts 
+        WHERE LOWER(product_name) = LOWER(?) AND status = 'AVAILABLE'
+    ''', (product_name,))
+    total_count = cursor.fetchone()[0]
     conn.close()
 
-    await update.message.reply_text(f"✅ Đã thêm tài khoản vào kho `{product_name}` thành công!", parse_mode="Markdown")
+    await update.message.reply_text(
+        f"✅ **Thêm tài khoản vào kho thành công!**\n"
+        f"📦 Tên sản phẩm: `{product_name}`\n"
+        f"📊 Tổng kho `{product_name}` hiện có: **{total_count}**",
+        parse_mode="Markdown"
+    )
 
 async def admin_add_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in ADMIN_IDS:
@@ -266,33 +291,56 @@ async def admin_add_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = update.message.text.strip()
     parts = text.split(maxsplit=4)
+
     if len(parts) < 5:
-        await update.message.reply_text("⚠️ Sai cú pháp! Dùng: `cộng <số_tiền> <id> hoàn thành <lý_do>`", parse_mode="Markdown")
+        await update.message.reply_text(
+            "⚠️ **Sai cú pháp cộng tiền!**\n"
+            "👉 Cú pháp: `cộng <số_tiền> <id_khách> hoàn thành <lý do>`",
+            parse_mode="Markdown"
+        )
         return
 
     _, amount_str, target_uid_str, status_action, reason = parts
+
     try:
-        amount, target_uid = int(amount_str), int(target_uid_str)
+        amount = int(amount_str)
+        target_uid = int(target_uid_str)
     except ValueError:
+        await update.message.reply_text("❌ Số tiền hoặc User ID phải là chữ số!")
         return
 
     if status_action.lower() in ["hoàn thành", "thành công", "ok"]:
         update_user_balance(target_uid, amount)
         new_balance = get_user_balance(target_uid)
-        await update.message.reply_text(f"✅ Đã cộng {amount:,} VNĐ cho UID `{target_uid}`", parse_mode="Markdown")
+        
+        await update.message.reply_text(
+            f"✅ **Cộng tiền thành công!**\n"
+            f"👤 User ID: `{target_uid}`\n"
+            f"💰 Số tiền cộng: +{amount:,} VNĐ\n"
+            f"💳 Số dư mới: {new_balance:,} VNĐ",
+            parse_mode="Markdown"
+        )
         try:
-            await context.bot.send_message(chat_id=target_uid, text=f"🎉 Bạn được cộng {amount:,} VNĐ. Số dư mới: {new_balance:,} VNĐ", parse_mode="Markdown")
+            await context.bot.send_message(
+                chat_id=target_uid,
+                text=f"🎉 **Bạn đã được cộng {amount:,} VNĐ vào tài khoản!**\n📝 Lý do: {reason}\n💳 Số dư mới: {new_balance:,} VNĐ",
+                parse_mode="Markdown"
+            )
         except Exception:
             pass
+    else:
+        await update.message.reply_text(f"❌ Đã từ chối giao dịch của UID `{target_uid}`.", parse_mode="Markdown")
 
 def main():
     app = Application.builder().token(TOKEN).build()
+
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(button_handler))
+
     app.add_handler(MessageHandler(filters.Regex(r'^(thêm|Thêm)\s+'), admin_add_account))
     app.add_handler(MessageHandler(filters.Regex(r'^(cộng|Cộng)\s+'), admin_add_balance))
 
-    print("Bot đang chạy bảo mật...")
+    print("Bot Store Bảo Mật đang chạy...")
     app.run_polling()
 
 if __name__ == "__main__":
