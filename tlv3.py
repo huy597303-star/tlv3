@@ -97,7 +97,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if data == "stock":
         conn = sqlite3.connect("bot_store.db")
         cursor = conn.cursor()
-        # Sửa lỗi đếm kho: gom nhóm và đếm đúng số lượng AVAILABLE
         cursor.execute('''
             SELECT platform, product_name, COUNT(*) 
             FROM accounts 
@@ -155,7 +154,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         conn = sqlite3.connect("bot_store.db")
         cursor = conn.cursor()
         
-        # Sửa lỗi mua Gmail / tài khoản: Lấy chính xác bản ghi AVAILABLE
         cursor.execute('''
             SELECT id, account_info 
             FROM accounts 
@@ -172,13 +170,11 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         acc_id, account_info = acc
         
-        # Chuyển trạng thái sang SOLD và trừ tiền
         cursor.execute("UPDATE accounts SET status = 'SOLD' WHERE id = ?", (acc_id,))
         cursor.execute("UPDATE users SET balance = balance - ? WHERE user_id = ?", (PRICE_PER_ITEM, user_id))
         conn.commit()
         conn.close()
 
-        # Trả tài khoản thành công cho khách
         await query.edit_message_text(
             f"✅ **MUA TÀI KHOẢN THÀNH CÔNG!**\n\n"
             f"📌 **Sản phẩm:** `{product_name}`\n"
@@ -189,7 +185,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
     elif data == "recharge":
-        # Tích hợp thông tin MoMo và VPBank của bạn
         recharge_text = (
             "💵 **HƯỚNG DẪN NẠP TIỀN TỰ ĐỘNG / THỦ CÔNG**\n\n"
             "Quý khách vui lòng chuyển khoản theo thông tin bên dưới:\n\n"
@@ -217,7 +212,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif data == "history":
         await query.edit_message_text(
-            "📜 **LỊCH SỬ GIAO DỊCH**\n\nTính năng đang được cập nhật...",
+            f"📜 **LỊCH SỬ GIAO DỊCH**\n\nTính năng đang được cập nhật...",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Quay lại", callback_data="home")]])
         )
@@ -229,14 +224,15 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("📦 Kho hàng", callback_data="stock"), InlineKeyboardButton("🛒 Mua hàng", callback_data="buy_menu")],
             [InlineKeyboardButton("💵 Nạp tiền", callback_data="recharge")]
         ]
+        reply_markup = InlineKeyboardMarkup(keyboard) # Đã sửa bọc vào InlineKeyboardMarkup chuẩn
         await query.edit_message_text(
             f"Xin chào {query.from_user.first_name}!\n"
             f"💰 Số dư hiện tại: {balance:,} VNĐ\n"
             f"Vui lòng chọn chức năng bên dưới:",
-            reply_markup=keyboard
+            reply_markup=reply_markup
         )
 
-# ----------------- HỆ THỐNG LỆNH ADMIN (THÊM / CỘNG TAY) ----------------- #
+# ----------------- HỆ THỐNG LỆNH ADMIN ----------------- #
 async def admin_add_account(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     if user_id not in ADMIN_IDS:
